@@ -163,9 +163,9 @@ function NewsListContent() {
 }
 
 export default function NewsList() {
-    return (
-      <Suspense fallback={<div>Loading...</div>}>
-        <NewsListContent />
-      </Suspense>
-    );
-  }
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <NewsListContent />
+    </Suspense>
+  );
+}
