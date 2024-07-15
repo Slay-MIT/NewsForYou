@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 
@@ -15,7 +15,7 @@ interface Article {
   publishedAt: string;
 }
 
-export default function ArticlePage({ params }: { params: { url: string } }) {
+function ArticleContent({ params }: { params: { url: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const category = searchParams.get('category') || 'all';
@@ -106,5 +106,13 @@ export default function ArticlePage({ params }: { params: { url: string } }) {
         Read full article on original website
       </a>
     </motion.div>
+  );
+}
+
+export default function ArticlePage({ params }: { params: { url: string } }) {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8 dark:bg-gray-900 dark:text-white">Loading...</div>}>
+      <ArticleContent params={params} />
+    </Suspense>
   );
 }
