@@ -40,7 +40,7 @@ function LoginContent() {
         transition={{ duration: 0.5 }}
         className="p-8 max-w-md w-full bg-white dark:bg-gray-800 shadow-2xl rounded-lg"
       >
-        <div className="flex justify-center mb-8">
+         <div className="flex justify-center mb-8">
           <FaNewspaper className="text-7xl text-blue-500 dark:text-blue-400" />
         </div>
         <h1 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-200">
