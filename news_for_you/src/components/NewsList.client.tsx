@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { getTopHeadlines } from '../app/api/news';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -18,7 +18,7 @@ interface Article {
 
 const categories = ['general', 'business', 'technology', 'sports', 'entertainment', 'health', 'science'];
 
-export default function NewsList() {
+function NewsListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [articles, setArticles] = useState<Article[]>([]);
@@ -161,3 +161,11 @@ export default function NewsList() {
     </div>
   );
 }
+
+export default function NewsList() {
+    return (
+      <Suspense fallback={<div>Loading...</div>}>
+        <NewsListContent />
+      </Suspense>
+    );
+  }

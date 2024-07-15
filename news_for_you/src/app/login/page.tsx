@@ -2,11 +2,11 @@
 
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { FaGoogle, FaNewspaper } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
-export default function Login() {
+function LoginContent() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -61,5 +61,13 @@ export default function Login() {
         </button>
       </motion.div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }
