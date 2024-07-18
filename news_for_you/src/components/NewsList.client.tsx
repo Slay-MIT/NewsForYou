@@ -44,8 +44,8 @@ function NewsListContent() {
     const filteredNews = allNews.filter((article: { title: any; urlToImage: any; }) => article.title && article.urlToImage);
     const shuffledNews = filteredNews.sort(() => Math.random() - 0.5);
     
-    // Limit to a specific number of articles, e.g., 30
-    const limitedNews = shuffledNews.slice(0, 30);
+    // Limit to a specific number of articles
+    const limitedNews = shuffledNews.slice(0, 50);
   
     let personalizedNews = getPersonalizedArticles(limitedNews);
     
