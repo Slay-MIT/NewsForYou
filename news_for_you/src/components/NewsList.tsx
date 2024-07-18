@@ -27,26 +27,31 @@ function NewsListContent() {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   const fetchNews = useCallback(async (forceRefresh = false) => {
-    const currentTime = Date.now();
-    if (!forceRefresh && articles.length > 0 && currentTime - lastFetchTime < 300000) { // 5 minutes
-      return;
-    }
+  const currentTime = Date.now();
+  if (!forceRefresh && articles.length > 0 && currentTime - lastFetchTime < 300000) { // 5 minutes
+    return;
+  }
 
-    setIsLoading(true);
-    let allNews: Article[] = [];
-    if (selectedCategory === 'all') {
-      const promises = categories.map(category => getTopHeadlines(category));
-      const results = await Promise.all(promises);
-      allNews = results.flat();
-    } else {
-      allNews = await getTopHeadlines(selectedCategory);
-    }
-    const filteredNews = allNews.filter((article: { title: any; urlToImage: any; }) => article.title && article.urlToImage);
-    const personalizedNews = getPersonalizedArticles(filteredNews);
-    setArticles(personalizedNews);
-    setIsLoading(false);
-    setLastFetchTime(currentTime);
-  }, [selectedCategory, articles, lastFetchTime]);
+  setIsLoading(true);
+  let allNews: Article[] = [];
+  if (selectedCategory === 'all') {
+    const promises = categories.map(category => getTopHeadlines(category));
+    const results = await Promise.all(promises);
+    allNews = results.flat();
+  } else {
+    allNews = await getTopHeadlines(selectedCategory);
+  }
+
+  // Filter and shuffle all news articles
+  const filteredNews = allNews.filter((article: { title: any; urlToImage: any; }) => article.title && article.urlToImage);
+  const shuffledNews = filteredNews.sort(() => Math.random() - 0.5);
+
+  const personalizedNews = getPersonalizedArticles(shuffledNews);
+  sessionStorage.setItem('articles', JSON.stringify(personalizedNews));
+  setArticles(personalizedNews);
+  setIsLoading(false);
+  setLastFetchTime(currentTime);
+}, [selectedCategory, articles, lastFetchTime]);
 
   useEffect(() => {
     fetchNews();
@@ -66,49 +71,117 @@ function NewsListContent() {
   function getPersonalizedArticles(articles: Article[]) {
     const preferences: { [key: string]: number } = JSON.parse(localStorage.getItem('newsPreferences') || '{}');
     const totalClicks = Object.values(preferences).reduce((a: number, b: number) => a + b, 0);
-
+    
     if (totalClicks === 0) return articles;
 
+    // Calculate weights for each category
+    const weights: { [key: string]: number } = {};
+    for (const category in preferences) {
+      weights[category] = preferences[category] / totalClicks;
+    }
+
+    // Sort articles based on category weights
     return articles.sort((a, b) => {
-      const scoreA = preferences[a.category] || 0;
-      const scoreB = preferences[b.category] || 0;
-      return scoreB - scoreA;
+      const weightA = weights[a.category] || 0;
+      const weightB = weights[b.category] || 0;
+      return weightB - weightA;
     });
   }
 
+  function updatePreferences(category: string) {
+    const preferences: { [key: string]: number } = JSON.parse(localStorage.getItem('newsPreferences') || '{}');
+    preferences[category] = (preferences[category] || 0) + 1;
+    localStorage.setItem('newsPreferences', JSON.stringify(preferences));
+  }
+
   function truncateText(text: string | null | undefined, maxLength: number = 100) {
-    if (!text) return '';
+    if (!text) return ''; 
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + '...';
   }
 
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    router.push(`/?category=${category}`, { scroll: false });
+    setArticles([]);  // Clear articles to force a refresh for the new category
+    fetchNews(true);
+  };
+
+  const handleRefresh = () => {
+    fetchNews(true);
+  };
+
   return (
-    <div className="grid gap-8 lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 px-4">
+    <div className="container mx-auto px-4 py-8 bg-gray-100 dark:bg-gray-900 min-h-screen">
+      <div className="mb-12 text-center">
+        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4 flex items-center justify-center">
+          <FaNewspaper className="mr-4" />
+          News For You
+        </h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300">Stay informed with personalized news</p>
+      </div>
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+        <select 
+          value={selectedCategory} 
+          onChange={(e) => handleCategoryChange(e.target.value)}
+          className="text-slate-800 dark:text-white w-full md:w-auto p-3 border rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 transition-all duration-300"
+        >
+          <option value="all">All Categories</option>
+          {categories.map(category => (
+            <option key={category} value={category}>
+              {category.charAt(0).toUpperCase() + category.slice(1)}
+            </option>
+          ))}
+        </select>
+        <button 
+          onClick={handleRefresh}
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full flex items-center justify-center transition-all duration-300"
+        >
+          <FaSync className="mr-2" />
+          Refresh
+        </button>
+      </div>
       {isLoading ? (
-        <div className="col-span-full text-center text-xl">Loading...</div>
+        <div className="text-center py-20">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading your personalized news...</p>
+        </div>
       ) : (
-        articles.map(article => (
-          <Link key={article.url} href={article.url} className="block">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden"
-            >
-              {article.urlToImage && (
-                <img
-                  src={article.urlToImage}
-                  alt={article.title}
-                  className="w-full h-48 object-cover"
-                />
-              )}
-              <div className="p-4">
-                <h2 className="text-xl font-bold mb-2">{article.title}</h2>
-                <p className="text-gray-600 dark:text-gray-400">{truncateText(article.description, 150)}</p>
-              </div>
-            </motion.div>
-          </Link>
-        ))
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {articles.map((article, index) => (
+            <Link 
+            href={{
+              pathname: `/article/${encodeURIComponent(article.url)}`,
+              query: { category: selectedCategory }
+            }}
+            key={index}
+            onClick={() => updatePreferences(article.category)}
+          >
+              <motion.div
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden cursor-pointer h-full flex flex-col transition-all duration-300 hover:shadow-xl"
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: "spring", stiffness: 300, damping: 10 }}
+              >
+                <div className="relative h-48 w-full">
+                  <img
+                    src={article.urlToImage}
+                    alt={article.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute top-0 right-0 m-2">
+                    <span className="inline-block bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                      {article.category}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-6 flex-grow flex flex-col justify-between">
+                  <h2 className="text-xl text-slate-900 dark:text-white font-bold mb-3 line-clamp-2">{article.title}</h2>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">{truncateText(article.description)}</p>
+                </div>
+              </motion.div>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -116,7 +189,7 @@ function NewsListContent() {
 
 export default function NewsList() {
   return (
-    <Suspense fallback={<div>Loading news...</div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <NewsListContent />
     </Suspense>
   );

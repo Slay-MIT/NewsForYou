@@ -31,18 +31,33 @@ function NewsListContent() {
     if (!forceRefresh && articles.length > 0 && currentTime - lastFetchTime < 300000) { // 5 minutes
       return;
     }
-
+  
     setIsLoading(true);
     let allNews: Article[] = [];
-    if (selectedCategory === 'all') {
-      const promises = categories.map(category => getTopHeadlines(category));
-      const results = await Promise.all(promises);
-      allNews = results.flat();
-    } else {
-      allNews = await getTopHeadlines(selectedCategory);
-    }
+  
+    // Always fetch from all categories
+    const promises = categories.map(category => getTopHeadlines(category));
+    const results = await Promise.all(promises);
+    allNews = results.flat();
+  
+    // Filter, shuffle, and limit the number of articles
     const filteredNews = allNews.filter((article: { title: any; urlToImage: any; }) => article.title && article.urlToImage);
-    const personalizedNews = getPersonalizedArticles(filteredNews);
+    const shuffledNews = filteredNews.sort(() => Math.random() - 0.5);
+    
+    // Limit to a specific number of articles, e.g., 30
+    const limitedNews = shuffledNews.slice(0, 30);
+  
+    let personalizedNews = getPersonalizedArticles(limitedNews);
+    
+    if (selectedCategory !== 'all') {
+      // Filter for the selected category after personalization
+      personalizedNews = personalizedNews.filter(article => article.category === selectedCategory);
+    } else {
+      // Interleave articles from different categories
+      personalizedNews = interleaveArticles(personalizedNews);
+    }
+  
+    sessionStorage.setItem('articles', JSON.stringify(personalizedNews));
     setArticles(personalizedNews);
     setIsLoading(false);
     setLastFetchTime(currentTime);
@@ -66,14 +81,53 @@ function NewsListContent() {
   function getPersonalizedArticles(articles: Article[]) {
     const preferences: { [key: string]: number } = JSON.parse(localStorage.getItem('newsPreferences') || '{}');
     const totalClicks = Object.values(preferences).reduce((a: number, b: number) => a + b, 0);
-    
+
     if (totalClicks === 0) return articles;
-  
+
+    // Calculate weights for each category based on user clicks
+    const weights: { [key: string]: number } = {};
+    for (const category in preferences) {
+      weights[category] = preferences[category] / totalClicks;
+    }
+
+    // Sort articles based on calculated weights, giving higher preference to categories with more clicks
     return articles.sort((a, b) => {
-      const scoreA = preferences[a.category] || 0;
-      const scoreB = preferences[b.category] || 0;
-      return scoreB - scoreA;
+      const weightA = weights[a.category] || 0;
+      const weightB = weights[b.category] || 0;
+      return weightB - weightA;
     });
+  }
+
+  function interleaveArticles(articles: Article[]) {
+    const categoryGroups: { [key: string]: Article[] } = {};
+    categories.forEach(category => {
+      categoryGroups[category] = [];
+    });
+
+    articles.forEach(article => {
+      if (categoryGroups[article.category]) {
+        categoryGroups[article.category].push(article);
+      }
+    });
+
+    const interleaved: Article[] = [];
+    let added = true;
+    while (added) {
+      added = false;
+      for (const category of categories) {
+        if (categoryGroups[category].length > 0) {
+          interleaved.push(categoryGroups[category].shift()!);
+          added = true;
+        }
+      }
+    }
+    return interleaved;
+  }
+
+  function updatePreferences(category: string) {
+    const preferences: { [key: string]: number } = JSON.parse(localStorage.getItem('newsPreferences') || '{}');
+    preferences[category] = (preferences[category] || 0) + 1;
+    localStorage.setItem('newsPreferences', JSON.stringify(preferences));
   }
 
   function truncateText(text: string | null | undefined, maxLength: number = 100) {
@@ -96,7 +150,7 @@ function NewsListContent() {
   return (
     <div className="container mx-auto px-4 py-8 bg-gray-100 dark:bg-gray-900 min-h-screen">
       <div className="mb-12 text-center">
-        <h1 className="text-7xl font-Bodoni_Moda_SC text-gray-800 dark:text-white mb-4 flex items-center justify-center">
+        <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4 flex items-center justify-center">
           <FaNewspaper className="mr-4" />
           News For You
         </h1>
@@ -131,7 +185,14 @@ function NewsListContent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {articles.map((article, index) => (
-            <Link href={`/article/${encodeURIComponent(article.url)}?category=${selectedCategory}`} key={index}>
+            <Link 
+            href={{
+              pathname: `/article/${encodeURIComponent(article.url)}`,
+              query: { category: selectedCategory }
+            }}
+            key={index}
+            onClick={() => updatePreferences(article.category)}
+          >
               <motion.div
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden cursor-pointer h-full flex flex-col transition-all duration-300 hover:shadow-xl"
                 whileHover={{ scale: 1.03 }}
@@ -151,7 +212,8 @@ function NewsListContent() {
                 </div>
                 <div className="p-6 flex-grow flex flex-col justify-between">
                   <h2 className="text-xl text-slate-900 dark:text-white font-bold mb-3 line-clamp-2">{article.title}</h2>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">{truncateText(article.description)}</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm flex-grow">{truncateText(article.description)}</p>
+                  <p className="mt-3 text-blue-500 hover:underline dark:text-blue-400 text-right">Read More</p>
                 </div>
               </motion.div>
             </Link>
