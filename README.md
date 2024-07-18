@@ -10,18 +10,17 @@ NewsForYou is a personalized news website built using Next.js. It leverages the 
 - **Responsive Design**: Optimized for both desktop and mobile devices.
 - **Modern UI**: Clean and modern user interface using Tailwind CSS and Framer Motion for animations.
 
+## Screenshots
 
-##Screenshots
-
-###Login Page
+### Login Page
 
 ![image](https://github.com/user-attachments/assets/f4643bfc-e94d-4815-8468-13c64bb66a96)
 
-###Home Page
+### Home Page
 
 ![image](https://github.com/user-attachments/assets/1bd80b07-b2ff-4bb2-a73c-f82bfed7fdbf)
 
-###Article Page
+### Article Page
 
 ![image](https://github.com/user-attachments/assets/7584068f-980b-4f44-9c06-dd05b61ca3ea)
 
